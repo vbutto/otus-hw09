@@ -25,15 +25,15 @@ resource "yandex_compute_instance_group" "todo_instances" {
       }
     }
     network_interface {
-      network_id = yandex_vpc_network.todo-network.id
+      network_id = yandex_vpc_network.todo_network.id
       nat        = "true"
     }
     service_account_id = yandex_iam_service_account.todo_node_sa.id
     metadata = {
-      ssh-keys = "${var.user}:${file("~/.ssh/id_rsa.pub")}"
+      ssh-keys = "${var.user}:${var.ssh_public_key}"
       docker-container-declaration = templatefile("${path.module}/files/spec.yaml", {
         docker_image   = "cr.yandex/${data.yandex_container_registry.todo_registry.id}/todo-demo:v1"
-        database_uri   = "postgresql://${local.dbuser}:${local.dbpassword}@:1/${local.dbname}"
+        database_uri   = "postgresql://${local.dbuser}:${local.dbpassword}@${join(",", local.dbhosts)}:6432/${local.dbname}"
         database_hosts = "${join(",", local.dbhosts)}"
       })
     }
@@ -48,7 +48,7 @@ resource "yandex_compute_instance_group" "todo_instances" {
   allocation_policy {
     zones = [
       "ru-central1-b",
-      "ru-central1-c"
+      "ru-central1-d"
     ]
   }
 

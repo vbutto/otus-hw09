@@ -14,11 +14,45 @@ data "yandex_lb_network_load_balancer" "todo_lb" {
   name = "todo-lb"
 }
 
+
+# Создание сервисного аккаунта для tank
+resource "yandex_iam_service_account" "tank_sa" {
+  name        = "tank-service-account"
+  description = "Service account for Yandex Tank instance"
+  folder_id   = var.yc_folder
+}
+
+# Назначение роли для доступа к compute ресурсам
+resource "yandex_resourcemanager_folder_iam_member" "tank_sa_compute_viewer" {
+  folder_id = var.yc_folder
+  role      = "compute.viewer"
+  member    = "serviceAccount:${yandex_iam_service_account.tank_sa.id}"
+}
+
+# Назначение роли для мониторинга (если потребуется)
+resource "yandex_resourcemanager_folder_iam_member" "tank_sa_monitoring_viewer" {
+  folder_id = var.yc_folder
+  role      = "monitoring.viewer"
+  member    = "serviceAccount:${yandex_iam_service_account.tank_sa.id}"
+}
+
+# Назначение роли для работы с load balancer
+resource "yandex_resourcemanager_folder_iam_member" "tank_sa_lb_viewer" {
+  folder_id = var.yc_folder
+  role      = "load-balancer.viewer"
+  member    = "serviceAccount:${yandex_iam_service_account.tank_sa.id}"
+}
+
+
 resource "yandex_compute_instance" "tank" {
   name        = "todo-tank"
   folder_id   = var.yc_folder
   zone        = "ru-central1-a"
   platform_id = "standard-v2"
+
+  # Привязываем сервисный аккаунт к инстансу
+  service_account_id = yandex_iam_service_account.tank_sa.id
+
   resources {
     memory = 2
     cores  = 2
@@ -32,12 +66,12 @@ resource "yandex_compute_instance" "tank" {
   }
   network_interface {
     subnet_id = data.yandex_vpc_subnet.todo-subnet-a.id
-    nat       = "true"
+    nat       = true
   }
   metadata = {
     user-data = templatefile("${path.module}/files/user-data.tpl", {
-      user    = var.user
-      ssh-key = "${local.public_ssh_key}"
+      user     = var.user
+      ssh-keys = "${var.user}:${var.ssh_public_key}"
     })
   }
 
@@ -100,4 +134,10 @@ resource "yandex_compute_instance" "tank" {
       host        = yandex_compute_instance.tank.network_interface.0.nat_ip_address
     }
   }
+
+  depends_on = [
+    yandex_resourcemanager_folder_iam_member.tank_sa_compute_viewer,
+    yandex_resourcemanager_folder_iam_member.tank_sa_monitoring_viewer,
+    yandex_resourcemanager_folder_iam_member.tank_sa_lb_viewer
+  ]
 }
