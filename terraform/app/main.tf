@@ -1,6 +1,6 @@
 # Роли сервисного аккаунта для terraform
 # container-registry.viewer - просмотр образов в реестре
-# iam.serviceAccountAdmin - создание сервисных аккаунтов
+# iam.serviceAccountsAdmin - создание сервисных аккаунтов
 # vpc.privateAdmin - создание и управление VPC
 # vpc.publicAdmin - создание и управление VPC
 # vpc.user - использование VPC
